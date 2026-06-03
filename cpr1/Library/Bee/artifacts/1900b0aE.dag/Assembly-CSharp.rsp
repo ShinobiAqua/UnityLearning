@@ -354,6 +354,7 @@
 -analyzer:"E:/software/Unity/Hub/Editor/2022.3.62f2/Editor/Data/Tools/Unity.SourceGenerators/Unity.Properties.SourceGenerator.dll"
 -analyzer:"E:/software/Unity/Hub/Editor/2022.3.62f2/Editor/Data/Tools/Unity.SourceGenerators/Unity.SourceGenerators.dll"
 "Assets/Pipeline/CameraRenderer.cs"
+"Assets/Pipeline/CameraRenderer.Editor.cs"
 "Assets/Pipeline/MyPipelineAsset.cs"
 "Assets/Pipeline/MyPipelineInstance.cs"
 -langversion:9.0

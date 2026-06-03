@@ -3,56 +3,102 @@ using UnityEngine.Rendering;
 
 namespace Pipeline
 {
-    public class Test
+    public partial class CameraRenderer
     {
-        public string name;
-    }
-    public class CameraRenderer
-    {
-        private ScriptableRenderContext context;
-        private Camera camera;
-        private const string bufferName = "Render Camera";
+        ScriptableRenderContext context;
+        Camera camera;
+        const string bufferName = "Render Camera";
 
-        private CommandBuffer buffer = new CommandBuffer
+        CommandBuffer buffer = new CommandBuffer
         {
             name = bufferName
         };
+        
+        CullingResults cullingResults;
         
         public void Render(ScriptableRenderContext context, Camera camera)
         {
             this.context = context;
             this.camera = camera;
+            PrepareBuffer();
             Setup();
+            PrepareForSceneWindow();
+            if (!Cull()) {
+                return;
+            }
             DrawVisibleGeometry();
+            DrawUnsupportedShaders();
+            DrawGizmos();
             Submit();
-
         }
 
-        private void Setup()
+        void Setup()
         {
             context.SetupCameraProperties(camera);
-            buffer.ClearRenderTarget(true, true, Color.clear);
+            var flags = camera.clearFlags;
+            buffer.ClearRenderTarget(
+                flags <= CameraClearFlags.Depth, 
+                flags <= CameraClearFlags.Color, 
+                Color.clear);
 
-            buffer.BeginSample(buffer.name);
+            buffer.BeginSample(SampleName);
             ExecuteBuffer();
         }
 
-        private void DrawVisibleGeometry()
+        void DrawVisibleGeometry()
         {
+            var sortingSettings = new SortingSettings(camera)
+            {
+                criteria = SortingCriteria.CommonOpaque
+            };
+
+            var drawingSettings = new DrawingSettings(
+                new ShaderTagId("SRPDefaultUnlit"),
+                sortingSettings
+            );
+
+            var filteringSettings = new FilteringSettings(
+                RenderQueueRange.opaque
+            );
+
+            context.DrawRenderers(
+                cullingResults,
+                ref drawingSettings,
+                ref filteringSettings
+            );
+
             context.DrawSkybox(camera);
+
+            sortingSettings.criteria = SortingCriteria.CommonTransparent;
+            drawingSettings.sortingSettings = sortingSettings;
+            filteringSettings.renderQueueRange = RenderQueueRange.transparent;
+
+            context.DrawRenderers(
+                cullingResults,
+                ref drawingSettings,
+                ref filteringSettings
+            );
         }
 
-        private void Submit()
+        void Submit()
         {
-            buffer.EndSample(buffer.name);
+            buffer.EndSample(SampleName);
             ExecuteBuffer();
             context.Submit();
         }
 
-        private void ExecuteBuffer()
+        void ExecuteBuffer()
         {
             context.ExecuteCommandBuffer(buffer);
             buffer.Clear();
+        }
+        
+        bool Cull() { 
+            if (camera.TryGetCullingParameters(out ScriptableCullingParameters p)) {
+                cullingResults = context.Cull(ref p);
+                return true;
+            }
+            return false;
         }
     }
 }
